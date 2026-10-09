@@ -1,0 +1,26 @@
+:root { font-family: system-ui, sans-serif; color: #24352f; background: #f3f6f2; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 8vh 20px; }
+main { max-width: 640px; margin: auto; background: white; padding: 40px; border-radius: 24px; box-shadow: 0 12px 48px #24352f0c; }
+.eyebrow { color: #52735e; font-size: 14px; }
+h1 { font-size: 36px; margin: 12px 0; }
+.intro, footer, .empty { color: #66736b; line-height: 1.7; }
+form { display: flex; gap: 10px; margin: 28px 0; }
+input, button { font: inherit; }
+#task-input { width: 100%; min-width: 0; padding: 14px; border: 1px solid #ccd7cc; border-radius: 10px; }
+button { cursor: pointer; border: 0; border-radius: 10px; padding: 12px 18px; color: white; background: #316449; white-space: nowrap; }
+button:hover { filter: brightness(.9); }
+:focus-visible { outline: 3px solid #87b898; outline-offset: 3px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+.toolbar button, li button { background: #edf3ed; color: #365a43; padding: 8px 12px; }
+ul { padding: 0; list-style: none; }
+li { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #eaf0e9; }
+li label { display: flex; align-items: center; gap: 12px; min-width: 0; }
+li span { overflow-wrap: anywhere; }
+li input { width: 18px; height: 18px; flex-shrink: 0; accent-color: #316449; }
+.done span { text-decoration: line-through; color: #78847c; }
+.empty { text-align: center; padding: 28px 0; }
+footer { font-size: 12px; margin-top: 32px; }
+#status { font-size: 13px; color: #8a451a; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@media (max-width: 480px) { main { padding: 24px; } body { padding: 24px 12px; } h1 { font-size: 30px; } }

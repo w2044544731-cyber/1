@@ -1,28 +1,59 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>今日清单</title>
-  <link rel="stylesheet" href="/style.css">
-  <script type="module" src="/app.js"></script>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商品流 · Temu 上架工作台</title>
+  <link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
 </head>
 <body>
+  <aside class="sidebar">
+    <a class="brand" href="/">商品流<span>PRODUCT FLOW</span></a>
+    <p class="nav-caption">工作空间</p>
+    <button class="nav active" data-view="products">▦ 商品工作台</button>
+    <button class="nav" data-view="workflows">⇧ 自动上架任务</button>
+    <button class="nav" data-view="activity">◷ 处理记录</button>
+    <button class="nav" data-view="integrations">⇄ 平台连接</button>
+    <div class="side-note"><b>妙手 ERP → Temu</b><p>采集 · 编辑 · 场景图 · 审核</p><span class="connection">● 外部平台待连接</span></div>
+  </aside>
   <main>
-    <p class="eyebrow">一步一步，完成今天</p>
-    <h1>今日清单</h1>
-    <p class="intro">把要做的事记下来，给每一个小进展打个勾。</p>
-    <form id="task-form">
-      <label class="sr-only" for="task-input">新的待办事项</label>
-      <input id="task-input" placeholder="接下来想完成什么？" maxlength="200" required autocomplete="off">
-      <button type="submit">添加</button>
-    </form>
-    <div class="toolbar"><span id="count" aria-live="polite"></span><button id="clear" type="button">清除已完成</button></div>
-    <ul id="tasks" aria-label="待办清单"></ul>
-    <p id="empty" class="empty">清单还是空的，添加第一件事吧。</p>
-    <p id="status" role="status"></p>
-    <footer>数据仅保存在当前浏览器，无需登录。</footer>
-    <noscript>请启用 JavaScript 以使用待办清单。</noscript>
+    <header><div><p class="eyebrow">LISTING WORKSPACE</p><h1 id="page-title">商品工作台</h1><p class="subtitle">让每一件商品，从采集走到上架准备。</p></div><div class="header-actions"><button id="open-collect" class="primary">读取妙手采集箱</button><button id="open-import" class="secondary">＋ 文件导入</button></div></header>
+    <div id="workflow-notice" class="notice">读取妙手商品，按分类更换场景背景，审核后提交保存与发布任务。</div>
+    <section id="products-view">
+      <div class="stats"><div><span>全部商品</span><strong id="stat-total">0</strong></div><div><span>待处理</span><strong id="stat-draft">0</strong></div><div><span>审核通过</span><strong id="stat-ready">0</strong></div><div><span>已导出</span><strong id="stat-exported">0</strong></div></div>
+      <div class="workflow"><span>01 导入资料</span><i>→</i><span>02 编辑与场景图</span><i>→</i><span>03 人工审核</span><i>→</i><span>04 保存妙手 / 提交发布</span></div>
+      <div class="workspace">
+        <section class="panel products-panel"><div class="panel-heading"><h2>商品库 <small id="library-count">0 件</small></h2><button id="demo" class="text-button">添加演示商品</button></div>
+          <div class="search-row"><input id="search" type="search" placeholder="搜索标题或 SKU" aria-label="搜索商品"><select id="filter" aria-label="筛选商品"><option value="all">全部状态</option><option value="draft">待处理</option><option value="ready">审核通过</option><option value="exported">已导出</option></select></div>
+          <div class="batch-row"><label><input id="select-all" type="checkbox"> 全选可见商品</label><span id="selected-count">已选 0 件</span></div>
+          <div id="product-list"></div>
+          <div id="empty" class="empty"><div class="empty-icon">▧</div><h3>第一件商品，从这里开始</h3><p>导入妙手导出的 CSV / JSON，<br>或添加演示商品体验处理流程。</p></div>
+          <div class="batch-actions"><button id="open-batch" class="secondary">批量编辑与场景图</button><button id="open-workflow" class="primary">批量自动上架</button></div><div class="export-bar"><select id="export-format" aria-label="导出格式"><option value="json">JSON 商品包（含图片）</option><option value="csv">CSV 字段表</option></select><button id="export" class="secondary">导出所选</button></div>
+        </section>
+        <section class="panel editor-panel"><div id="editor-empty" class="empty editor-placeholder"><div class="empty-icon">✧</div><h3>选择一件商品开始编辑</h3><p>原图保留，场景图另存。<br>确认图片和商品信息后再审核。</p></div>
+          <div id="editor" hidden><div class="panel-heading"><div><p class="eyebrow">PRODUCT EDITOR</p><h2>商品编辑</h2></div><span id="editor-status" class="badge"></span></div>
+            <div id="erp-source-meta" class="erp-source-meta" hidden></div><form id="edit-form">
+              <div class="form-grid"><label class="full">商品标题<input name="title" maxlength="200" required placeholder="输入商品标题"></label><label>SKU<input name="sku" maxlength="80" required></label><label>商品分类<input name="category" required placeholder="如 厨房用品 / 办公用品"></label><label>售价<input name="price" type="number" min="0.01" step="0.01" required></label><label>币种<select name="currency"><option>USD</option><option>CNY</option><option>EUR</option><option>GBP</option></select></label><label>库存<input name="stock" type="number" min="0" step="1" required></label><label>商品来源<input name="sourceUrl" type="url" placeholder="https://..."></label><label class="full">商品描述<textarea name="description" rows="3" maxlength="5000" placeholder="材质、尺寸、使用方式；请核实真实性"></textarea></label></div>
+              <div class="section-label"><h3>商品场景图</h3><label class="file-button">上传商品原图<input id="source-file" type="file" accept="image/png,image/jpeg,image/webp" hidden></label></div>
+              <div class="image-grid"><figure><div class="image-frame"><img id="source-preview" alt="商品原图" referrerpolicy="no-referrer"><span id="source-empty">尚无原图</span></div><figcaption>原始商品图</figcaption></figure><figure><div class="image-frame"><img id="processed-preview" alt="处理后场景图"><span id="processed-empty">生成后在此预览</span></div><figcaption>场景合成结果 <button id="download-image" type="button" class="text-button">下载 PNG</button></figcaption></figure></div>
+              <div class="scene-settings"><label>背景场景<select id="scene"><option value="auto">根据标题 / 分类自动选择</option><option value="kitchen">厨房 · 温暖台面</option><option value="living">家居 · 自然空间</option><option value="desk">办公 · 简洁桌面</option><option value="outdoor">户外 · 绿意背景</option><option value="custom">上传真实场景背景</option><option value="white">纯白商品图</option></select></label><label>去底强度 <output id="tolerance-value">45</output><input id="tolerance" type="range" min="0" max="90" value="45"></label><button id="process" type="button" class="secondary">生成场景图</button></div>
+              <label id="custom-background-label" class="file-button" hidden>上传场景背景<input id="background-file" type="file" accept="image/png,image/jpeg,image/webp"><span id="background-name"></span></label>
+              <p class="hint">当前为场景模板合成，适合透明底或浅色纯底商品图；复杂背景、白色商品可能需要专业抠图。内置场景是插画模板，可上传真实背景。生成后请检查边缘、商品比例与真实性。</p>
+              <section class="ai-plan-panel"><div class="section-label"><h3>AI 场景方案 · 文字</h3><button id="plan-scene" type="button" class="secondary">生成场景方案</button></div><p id="scene-ai-config" class="hint"></p><p class="hint">只向文本服务发送标题、分类和描述。该步骤生成建议与图片编辑提示词，不会生成图片；下方模板合成独立运行。</p><p id="scene-reason" class="hint"></p><label>图片编辑提示词<textarea id="scene-prompt" rows="4" maxlength="4000" placeholder="等待文字服务返回方案；后续图像编辑服务可使用此提示词"></textarea></label><button id="apply-plan" type="button" class="text-button">使用建议的模板场景</button></section><section class="ai-plan-panel"><h3>AI 图片编辑</h3><p id="image-ai-config" class="hint"></p><label>场景要求<textarea id="ai-edit-prompt" rows="3" maxlength="4000" placeholder="如：将杯子放在自然光下的厨房台面，保留商品外观；留空时使用上方场景方案"></textarea></label><button id="edit-ai-image" type="button" class="secondary">AI 更换场景背景</button><p class="hint">向图像编辑服务发送商品原图。生成后保留原图，请检查形状、颜色、文字与配件是否一致。</p></section><p id="image-result" class="hint" role="status"></p>
+              <div class="editor-footer"><button id="delete-product" type="button" class="danger text-button">删除商品</button><div><button id="save" type="submit" formnovalidate class="secondary">保存草稿</button><button id="review" type="button" class="primary">保存并确认图片</button></div></div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </section>
+    <section id="workflows-view" class="panel" hidden><div class="panel-heading"><h2>自动上架任务</h2><button id="refresh-workflows" class="secondary">刷新任务</button></div><div class="workflow-intro"><strong id="workflow-mode"></strong><p class="hint">任务逐件处理并记录进度。未知写入结果会停止该商品，不自动重复发送；停止任务只影响后续商品。</p><p id="workflow-config" class="hint"></p></div><div id="workflow-jobs"></div></section>
+    <section id="activity-view" class="panel" hidden><div class="panel-heading"><h2>处理记录</h2><button id="refresh" class="secondary">刷新</button></div><div id="activity-list"></div></section>
+    <section id="integrations-view" class="panel" hidden><div class="panel-heading"><h2>连接妙手与 Temu</h2><span id="integration-status" class="badge draft">读取配置状态…</span></div><div class="integration-grid"><article><h3>妙手 ERP · 商品来源</h3><p>当前可导入 CSV / JSON，或包含 Product 结构化数据的页面 HTML。仅保存来源链接不会自动采集商品资料。</p><p>支持公共采集箱分页读取、商品导入与签名调用。可通过自动任务保存主图并认领到 Temu 全托管；所有 SKU 与原始资料保留。</p></article><article><h3>Temu · 商品上传</h3><p>当前可以导出审核后的商品和图片。通用文件需要按平台模板映射字段，不能保证直接导入。</p><p>自动任务在主图保存及核对后提交发布。真实执行需配置已核实的店铺商品保存接口与可公开读取的图片地址。最终上架状态查询待接入。</p></article></div><section class="erp-publish-panel"><h3>读取妙手采集箱商品</h3><p class="hint">读取已认领到 Temu 的店铺商品，不切换类目。公共采集箱可通过顶部“读取妙手采集箱”分页导入。</p><div class="form-grid"><label>妙手店铺 ID<input id="read-shop" inputmode="numeric" placeholder="店铺 ID"></label><label>采集箱详情 ID<input id="read-detail" inputmode="numeric" placeholder="详情 ID"></label></div><p id="read-config" class="hint"></p><button id="read-erp" class="secondary">从妙手读取并导入</button><details class="offline-response"><summary>已有详情接口 JSON 响应？离线导入</summary><p class="hint">填好上方店铺及详情 ID 后，粘贴接口 JSON 响应。不含 Cookie、timerToken 或其他凭证。离线数据不视为已验证最新状态。</p><textarea id="erp-response" rows="5" placeholder='{"result":"success","code":"...","data":{"shopCollectItemInfo":{...}}}'></textarea><button id="import-erp-response" class="secondary">导入详情响应</button></details></section><section class="erp-publish-panel"><h3>高级操作：直接提交妙手现有商品</h3><p class="hint">根据你提供的全托管接口文档。此操作不发布本地商品修改或场景图，请先在妙手完成编辑与图片同步。</p><div class="form-grid"><label>妙手店铺 ID<input id="publish-shops" placeholder="如 123, 456；不是店铺名称" inputmode="numeric"></label><label>采集箱详情 ID<input id="publish-details" placeholder="如 789, 790；不是 SKU 或链接" inputmode="numeric"></label></div><p id="publish-config" class="hint"></p><button id="preview-publish" class="secondary">预览发布参数</button><h3>发布请求记录</h3><p class="hint">请求被接受不等于已上架。网络异常时请在妙手核对，不自动重复提交。</p><div id="publish-jobs"></div></section><p class="hint integration-hint">此版本面向本机单用户运行，没有登录与多人权限；请勿直接开放到公网。账号密码、Cookie 和密钥不要填入商品字段。</p></section>
+    <div id="toast" role="status" hidden></div>
   </main>
+  <dialog id="collect-dialog"><div class="dialog-heading"><h2>读取妙手公共采集箱</h2><button id="close-collect" class="icon-button" aria-label="关闭采集箱">×</button></div><p id="common-config" class="hint"></p><div class="search-row"><input id="collect-keyword" placeholder="来源商品 ID 关键词（可选）" aria-label="搜索采集箱"><button id="collect-search" class="secondary">查询</button></div><div id="collect-list"></div><p id="collect-errors" class="error" role="alert"></p><div class="collection-pages"><button id="collect-prev" class="text-button">上一页</button><span id="collect-page" class="hint"></span><button id="collect-next" class="text-button">下一页</button></div><div class="dialog-footer"><span id="collect-count" class="hint">已选 0 件</span><button id="collect-import" class="primary">导入所选商品</button></div></dialog>
+  <dialog id="workflow-dialog"><div class="dialog-heading"><h2>批量换图与发布</h2><button id="close-workflow" class="icon-button" aria-label="关闭自动任务">×</button></div><p class="hint">只替换第一张主图；保留其他图片、变体、价格和库存。公共采集箱商品会认领到 Temu，全托管店铺副本保存成功后再提交发布。</p><label>目标妙手店铺 ID<input id="workflow-shop" inputmode="numeric" placeholder="请输入实际店铺 ID"></label><div id="workflow-products"></div><button id="workflow-generate" class="secondary">按分类生成缺少的场景图</button><label class="batch-toggle"><input id="workflow-images-checked" type="checkbox"> 我已检查所选图片，确认商品外观与场景效果</label><button id="workflow-preview" class="secondary">检查任务与连接配置</button><p id="workflow-preview-status" class="hint" role="status"></p><div class="dialog-footer"><span class="hint">提交成功后仍需确认最终上架结果</span><button id="workflow-submit" class="primary" disabled>提交自动任务</button></div></dialog>
+  <dialog id="publish-dialog"><div class="dialog-heading"><div><p class="eyebrow">ERP PUBLISH REQUEST</p><h2>确认发布任务</h2></div><button id="close-publish" class="icon-button" aria-label="关闭发布确认">×</button></div><p class="notice">将向妙手提交现有采集箱商品的发布请求。本地修改和新场景图不会被这个接口上传。</p><pre id="publish-payload"></pre><p id="publish-readiness" class="hint"></p><label class="batch-toggle"><input id="publish-ack" type="checkbox"> 我已核对店铺和详情 ID，确认使用妙手中的现有商品内容</label><div class="dialog-footer"><span class="hint">不会将请求接受标记为已上架</span><button id="confirm-publish" class="primary" disabled>确认提交发布请求</button></div></dialog>
+  <dialog id="batch-dialog"><div class="dialog-heading"><div><p class="eyebrow">BATCH PROCESSING</p><h2>批量处理所选商品</h2></div><button id="close-batch" class="icon-button" aria-label="关闭批量编辑">×</button></div><p class="subtitle">按规则编辑并保存草稿，处理后仍须人工审核。</p><div class="form-grid batch-fields"><label>标题前缀<input id="batch-prefix" maxlength="40" placeholder="可留空"></label><label>标题后缀<input id="batch-suffix" maxlength="40" placeholder="可留空"></label><label>价格调整（%）<input id="batch-markup" type="number" value="0" min="-99" max="1000" step="0.1"></label><label>统一库存<input id="batch-stock" type="number" min="0" step="1" placeholder="留空保持原库存"></label></div><label class="batch-toggle"><input id="batch-images" type="checkbox" checked> 同时按标题和分类生成场景图（去底强度 45）</label><p class="hint">每件商品分别处理并保存，失败项保留原数据。仅适用浅色纯底或透明底图；缺少原图的商品将报错，不会被标记完成。</p><div class="dialog-footer"><span id="batch-progress" role="status"></span><button id="batch-submit" class="primary">开始批量处理</button></div><div id="batch-results" role="status"></div></dialog>
+  <dialog id="import-dialog"><div class="dialog-heading"><div><p class="eyebrow">IMPORT PRODUCTS</p><h2>导入商品资料</h2></div><button id="close-import" class="icon-button" aria-label="关闭">×</button></div><p class="subtitle">导入妙手已采集的商品资料，或手动创建商品。</p><label>来源链接（可选）<input id="import-url" type="url" placeholder="商品来源链接；不自动抓取网页"></label><label class="file-button import-file">选择 CSV / JSON / HTML 文件<input id="import-file" type="file" accept=".csv,.json,.html,.htm,.txt"></label><label>商品数据<textarea id="import-text" rows="9" placeholder='[{"title":"保温杯","sku":"CUP-001","category":"厨房用品","price":12.99,"currency":"USD","stock":100,"imageUrl":"https://..."}]'></textarea></label><p class="hint">CSV 支持：商品标题、SKU、分类、价格、币种、库存、主图链接、采集链接。HTML 须包含 Product JSON-LD。Excel 请先另存为 CSV。</p><p id="import-error" class="error" role="alert"></p><div class="dialog-footer"><button id="new-product" class="secondary">手动创建空白商品</button><button id="import-submit" class="primary">导入到商品库</button></div></dialog>
 </body>
 </html>

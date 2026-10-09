@@ -1,0 +1,15 @@
+{
+  "products": [
+    {
+      "title": "双层保温杯",
+      "sku": "CUP-001",
+      "category": "厨房用品",
+      "price": 12.99,
+      "currency": "USD",
+      "stock": 100,
+      "description": "示例字段，请替换为实际商品信息。导入后上传自己的商品原图。",
+      "sourceUrl": "",
+      "imageUrl": ""
+    }
+  ]
+}

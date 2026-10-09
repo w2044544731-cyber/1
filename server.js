@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createStore, AppError } from './lib/store.js';
 import { createPublisher, publishPayload, payloadFingerprint } from './lib/erp-publish.js';
 import { createDetailsReader } from './lib/erp-details.js';
@@ -10,6 +10,8 @@ import { createCollectBox } from './lib/collect-box.js';
 import { createProductImages } from './lib/product-images.js';
 import { createWorkflows } from './lib/workflows.js';
 import { createDemo } from './lib/demo.js';
+import { createBrowserAssistant } from './lib/browser-assistant.js';
+import { createBrowserDemo } from './lib/browser-demo.js';
 
 const routes = {
   '/': ['index.html', 'text/html; charset=utf-8'],
@@ -19,6 +21,10 @@ const routes = {
   '/rules.js': ['rules.js', 'text/javascript; charset=utf-8'],
   '/importer.js': ['importer.js', 'text/javascript; charset=utf-8'],
   '/workflow-ui.js': ['workflow-ui.js', 'text/javascript; charset=utf-8'],
+  '/browser-ui.js': ['browser-ui.js', 'text/javascript; charset=utf-8'],
+  '/browser-demo': ['browser-demo.html', 'text/html; charset=utf-8'],
+  '/browser-demo/editor': ['browser-demo.html', 'text/html; charset=utf-8'],
+  '/browser-demo.js': ['browser-demo.js', 'text/javascript; charset=utf-8'],
 };
 async function body(req) {
   if (!req.headers['content-type']?.startsWith('application/json')) throw new AppError('请发送 application/json', 415);
@@ -35,7 +41,7 @@ async function body(req) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new AppError('请求内容须为 JSON 对象');
   return parsed;
 }
-export function createServer({ dataDir = process.env.DATA_DIR || new URL('./.local-data/', import.meta.url).pathname, publishEnv = process.env, publishFetch = fetch, sceneEnv = process.env, sceneFetch = fetch, imageFetch = fetch, demoMode = publishEnv.WORKFLOW_DEMO === 'true' } = {}) {
+export function createServer({ dataDir = process.env.DATA_DIR || fileURLToPath(new URL('./.local-data/', import.meta.url)), publishEnv = process.env, publishFetch = fetch, sceneEnv = process.env, sceneFetch = fetch, imageFetch = fetch, browserEnv = process.env, demoMode = publishEnv.WORKFLOW_DEMO === 'true' } = {}) {
   const demo = demoMode ? createDemo() : null;
   const erpEnv = demo ? { ...publishEnv, ...demo.env } : publishEnv;
   const erpFetch = demo ? demo.fetch : publishFetch;
@@ -47,6 +53,8 @@ export function createServer({ dataDir = process.env.DATA_DIR || new URL('./.loc
   const collectBox = createCollectBox({ client, env: erpEnv, demo: demoMode, demoImage: demo?.image });
   const images = createProductImages({ directory: dataDir, env: erpEnv, fetchImpl: imageFetch, demoImage: demo?.image });
   const workflows = createWorkflows({ store, client, images, env: erpEnv, demo: demoMode });
+  const assistant = createBrowserAssistant({ directory: dataDir, store, env: browserEnv });
+  const browserDemo = createBrowserDemo();
   const server = http.createServer(async (req, res) => {
     const json = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -57,6 +65,23 @@ export function createServer({ dataDir = process.env.DATA_DIR || new URL('./.loc
       const method = req.method;
       if (!['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(method)) { json(405, { error: '不支持此方法' }); return; }
       if (!['GET', 'HEAD'].includes(method) && req.headers.origin && req.headers.origin !== `http://${req.headers.host}` && req.headers.origin !== erpEnv.APP_ORIGIN) throw new AppError('不接受其他网站发起的修改', 403);
+      if (pathname.startsWith('/api/browser')) {
+        if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) || !/^((localhost|127\.0\.0\.1)(:\d+)?|\[::1\](:\d+)?)$/.test(req.headers.host || '')) throw new AppError('浏览器助手仅允许从本机控制', 403);
+        if (pathname === '/api/browser/status' && method === 'GET') { json(200, await assistant.status()); return; }
+        if (method === 'POST') {
+          const data = await body(req);
+          if (pathname === '/api/browser/open') { json(200, await assistant.open(data)); return; }
+          if (pathname === '/api/browser/pick') { json(200, await assistant.pick(data)); return; }
+          if (pathname === '/api/browser/recipe') { json(200, await assistant.saveRecipe(data)); return; }
+          if (pathname === '/api/browser/repair') { json(200, await assistant.repair(data)); return; }
+          if (pathname === '/api/browser/capture') { json(201, await assistant.capture(data)); return; }
+          if (pathname === '/api/browser/jobs') { json(202, await assistant.enqueue(data)); return; }
+          const control = pathname.match(/^\/api\/browser\/jobs\/([a-f0-9-]+)\/(stop|pause|resume)$/);
+          if (control) { json(200, await assistant.control(control[1], control[2])); return; }
+        }
+      }
+      if (pathname.startsWith('/browser-demo/api/')) { const result = browserDemo.request(pathname, method, method === 'POST' ? await body(req) : new URL(req.url, 'http://localhost').searchParams); json(result.status, result.data); return; }
+      if (pathname === '/browser-demo/source.png' && ['GET', 'HEAD'].includes(method)) { res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(method === 'HEAD' ? undefined : browserDemo.image); return; }
       if (pathname === '/health' && ['GET', 'HEAD'].includes(method)) { json(200, { status: 'ok', app: 'listing-workbench' }); return; }
       if (pathname === '/api/state' && method === 'GET') { json(200, await store.list()); return; }
       if (pathname === '/api/integrations' && method === 'GET') {
@@ -119,7 +144,9 @@ export function createServer({ dataDir = process.env.DATA_DIR || new URL('./.loc
       json(404, { error: '不存在此资源' });
     } catch (error) { json(error.status || 500, { error: error.status ? error.message : '服务异常，请查看本地服务日志' }); if (!error.status) console.error(error); }
   });
-  server.on('close', () => workflows.close());
+  server.on('listening', () => { const address = server.address(); if (address && typeof address === 'object') assistant.setDemoOrigin(`http://127.0.0.1:${address.port}`); });
+  server.on('close', () => { workflows.close(); assistant.close().catch(error => console.error(error.message)); });
+  server.browserAssistant = assistant;
   return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

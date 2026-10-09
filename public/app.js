@@ -2,6 +2,7 @@ import { editRules } from './rules.js';
 import { parseImport, parseCsv } from './importer.js';
 import { readImage, processImage, composeScene, chooseScene, demoImage } from './images.js';
 import { initializeWorkflowUI } from './workflow-ui.js';
+import { initializeBrowserUI } from './browser-ui.js';
 const $ = selector => document.querySelector(selector);
 const statusLabels = { draft: '待处理', ready: '审核通过', exported: '已导出' };
 const state = { products: [], events: [], workflowJobs: [], current: null, editorRevision: null, selected: new Set(), image: '', processed: '', background: '', custom: '', busy: false, dirty: false, publishJobs: [], publishPreview: null, publishRequestId: null, scenePlan: null };
@@ -198,14 +199,18 @@ $('#demo').addEventListener('click', () => run(async () => {
   await reload(); selectProduct(created[0].id, true); showView('products'); toast('已创建演示商品，可生成厨房场景图');
 }));
 function showView(view) {
-  for (const name of ['products', 'workflows', 'activity', 'integrations']) $(`#${name}-view`).hidden = name !== view;
+  for (const name of ['products', 'browser', 'workflows', 'activity', 'integrations']) $(`#${name}-view`).hidden = name !== view;
   for (const nav of document.querySelectorAll('[data-view]')) nav.classList.toggle('active', nav.dataset.view === view);
-  $('#page-title').textContent = { products: '商品工作台', workflows: '自动上架任务', activity: '处理记录', integrations: '平台连接' }[view];
+  $('#page-title').textContent = { products: '商品工作台', browser: '浏览器操作助手', workflows: '自动上架任务', activity: '处理记录', integrations: '平台连接' }[view];
+  $('.header-actions').hidden = view === 'browser';
+  if (view === 'browser') { if (!$('#workflow-notice').dataset.previous) $('#workflow-notice').dataset.previous = $('#workflow-notice').textContent; $('#workflow-notice').textContent = '浏览器模式：自行登录妙手，首次选取网页位置；处理后的图片直接上传到网页，保存后可暂停核对。'; }
+  else if ($('#workflow-notice').dataset.previous) { $('#workflow-notice').textContent = $('#workflow-notice').dataset.previous; delete $('#workflow-notice').dataset.previous; }
 }
 for (const button of document.querySelectorAll('[data-view]')) button.addEventListener('click', () => showView(button.dataset.view));
 $('#refresh').addEventListener('click', () => run(reload));
 window.addEventListener('beforeunload', event => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
 const workflowUI = initializeWorkflowUI({ state, api, run, element, reload, selectProduct, showView, toast, saveCurrent });
+initializeBrowserUI({ state, api, run, element, reload, selectProduct, showView, toast });
 run(async () => { await reload(); await loadIntegrations(); });
 
 $('#open-batch').addEventListener('click', () => {

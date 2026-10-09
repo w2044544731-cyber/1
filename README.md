@@ -1,12 +1,18 @@
 # 商品流：妙手 ERP → Temu 全托管自动工作台
 
-网页软件，用于读取妙手已采集商品，按分类更换主图背景，保留原始商品与 SKU，保存到采集箱并提交 Temu 全托管发布任务。包含可运行的独立演示模式。
+网页软件，用于读取妙手已采集商品，按分类更换主图背景，保留原始商品与 SKU，保存到采集箱并提交 Temu 全托管发布任务。提供官方 API 工作流，以及模拟人工点击、上传和填写的本机浏览器操作助手。
 
-**本地功能和模拟服务工作流已经验证；尚未验证用户真实妙手账号、图片服务或 Temu 上架。** 真实店铺商品保存接口路径未在现有附件中提供，应用不会猜测路径。发布成功响应只表示任务接受，不表示最终上架。
+**本地功能、模拟服务和真实 Chromium 对演示网页的操作已经验证；尚未验证用户真实妙手账号、图片服务或 Temu 上架。** 真实店铺商品保存 API 路径未在现有附件中提供，应用不会猜测路径；浏览器模式可通过用户校准网页位置来完成保存和发布。发布成功提示不表示最终上架。
 
 ## 启动与验证
 
-需要 Node.js >=24.5；当前验证版本为 24.19.0。使用原生 Node.js，无第三方生产依赖、数据库、npm install 或构建步骤。
+需要 Node.js >=24.5；当前验证版本为 24.19.0。服务使用原生 Node.js，浏览器操作通过固定版本的 Playwright。无需数据库或构建，先安装依赖：
+
+```sh
+npm ci
+```
+
+Windows 使用 Edge，详见 [Windows 使用说明](WINDOWS使用说明.md)：首次双击 `install-windows.bat`，之后双击 `start-windows.bat`。这个包包含源码及启动助手，未提供独立 EXE；Linux Chromium 流程已验证，Windows 启动分支尚未实机验证。
 
 ```sh
 npm start
@@ -23,10 +29,32 @@ npm run start:demo
 ```sh
 npm run check
 npm test
+node scripts/browser-smoke.js
 curl --fail --silent http://127.0.0.1:3000/health
 ```
 
 健康响应为 `{"status":"ok","app":"listing-workbench"}`。测试覆盖商品持久化、原子并发写入、版本冲突、图片分离、CSV、签名、认领映射、保存后核对、发布去重、未知结果处理、重启恢复与图像编辑契约。模拟测试不证明真实平台授权。
+
+浏览器测试使用无界面 Chromium，Linux 默认 `/usr/bin/chromium`，可通过 `BROWSER_TEST_EXECUTABLE` 指定已安装的浏览器；Windows 默认使用 Edge。其他系统需先 `npx playwright install chromium`。UI smoke 在临时目录运行完整“读取 → 生成场景图 → 上传 → 保存 → 人工核对 → 发布”演示，不使用真实账号或 AI。`ARTIFACT_DIR` 可保存桌面及移动尺寸截图。
+
+## 浏览器操作助手
+
+进入“浏览器操作助手”，打开妙手商品编辑页，在独立浏览器中自行登录。通过“到网页选取”捕获商品识别文字、目标店铺、图片上传位置、保存和发布按钮及成功提示。支持点击、上传、填写固定文字、等待和人工暂停，可调整步骤顺序；不记录键盘、密码和 Cookie，也不绕过登录或验证码。
+
+可从当前商品页读入标题、SKU、分类和一张原图，或使用工作台已有商品。按分类更换场景后保存草稿，再加入浏览器任务。每批 1–20 件商品分别填写编辑页地址与准确的 SKU / 详情 ID，确认图片与店铺后执行。浏览器任务只使用开始时冻结的图片，不把本地标题、价格或库存写入网页。浏览器上传本地 PNG，无需公网图片地址或妙手保存 API。
+
+任务默认在保存后暂停核对，支持“暂停并接管”“继续”“停止”，页面识别不符时自动暂停。可以把新定位应用到暂停任务，但不能修改该任务的店铺或步骤类型。每个位置必须唯一；保存、发布需出现配置的本次成功提示。超时或操作结果未知时停止整批，不自动重试；重启不重放旧任务。网页结构、替换图片工具和弹窗需首次校准；演示选择器不适用于妙手真实页面。
+
+浏览器控制仅允许本机 loopback 请求，并校验来源和 Host。浏览器配置及登录会话保存在数据目录的 `browser-profile`，任务与图片快照在 `browser-jobs.json`；不要分享或上传数据目录。该助手为本机单用户工具，没有多人授权或远程浏览器控制。登录中产生的凭证 URL 不返回工作台。
+
+| 变量 | 用途 |
+| --- | --- |
+| BROWSER_CHANNEL | Windows 默认 msedge；其他系统默认 chromium |
+| BROWSER_EXECUTABLE_PATH | 可选的浏览器可执行文件绝对路径，优先于 channel |
+| BROWSER_HEADLESS | 仅云端验证设 true；Windows 使用窗口模式，请保留默认 false |
+| BROWSER_STEP_TIMEOUT_MS | 页面操作 / 提示等待，默认 12000，限制 500–30000 毫秒 |
+
+启动命令读取可选的 `.env`（Git 忽略），仍以已经注入的环境变量优先。请只在本机安全保存所需 AI 配置，不把密钥填入商品或流程字段。
 
 默认仅供本机单用户运行，没有登录和团队权限。公网图片可通过反向代理单独开放 `/media/`；商品数据和管理 API 应继续限制访问。`PORT`、`HOST` 可覆盖监听位置；HTTPS 管理入口使用 `APP_ORIGIN` 配置允许的精确来源。
 
@@ -99,6 +127,12 @@ DeepSeek 兼容文字场景方案保留为可选功能：SCENE_TEXT_API_KEY、SC
 | 路径 | 用途 |
 | --- | --- |
 | GET /health、GET /api/state | 健康、商品与任务记录 |
+| GET /api/browser/status | 本机浏览器状态、流程、脱敏任务进度；不返回图片快照或凭证 URL |
+| POST /api/browser/open、pick、recipe | 打开操作浏览器、选取位置、保存流程 |
+| POST /api/browser/capture | 读取当前商品的标题、SKU、分类与原图 |
+| POST /api/browser/jobs | 执行已检查图片的浏览器批量任务 |
+| POST /api/browser/jobs/:id/pause、resume、stop | 暂停接管、继续或停止 |
+| POST /api/browser/repair | 对暂停任务应用校准定位 |
 | GET /api/integrations | 配置完整性与缺少的变量名；不返回密钥，不表示已连通 |
 | POST /api/collect-box/list | pageNo、pageSize、keyword；读取公共采集箱 |
 | POST /api/collect-box/import | detailId；读取完整详情并导入 |

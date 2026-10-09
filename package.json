@@ -7,9 +7,14 @@
     "node": ">=24.5"
   },
   "scripts": {
-    "start": "node --use-env-proxy server.js",
-    "start:demo": "node --use-env-proxy scripts/demo-server.js",
+    "start": "node --use-env-proxy --env-file-if-exists=.env server.js",
+    "start:demo": "node --use-env-proxy --env-file-if-exists=.env scripts/demo-server.js",
+    "test:browser": "node --test test/browser.test.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check lib/store.js && node --check public/app.js && node --check public/images.js && node --check public/importer.js && node --check public/rules.js && node --check lib/erp-publish.js && node --check lib/erp-details.js && node --check lib/scene-planner.js && node --check lib/miaoshou.js && node --check lib/collect-box.js && node --check lib/product-images.js && node --check lib/workflows.js && node --check lib/temu-validation.js && node --check lib/demo.js && node --check public/workflow-ui.js && node --check scripts/demo-server.js"
+    "check": "node --check server.js && node --check lib/store.js && node --check public/app.js && node --check public/images.js && node --check public/importer.js && node --check public/rules.js && node --check lib/erp-publish.js && node --check lib/erp-details.js && node --check lib/scene-planner.js && node --check lib/miaoshou.js && node --check lib/collect-box.js && node --check lib/product-images.js && node --check lib/workflows.js && node --check lib/temu-validation.js && node --check lib/demo.js && node --check public/workflow-ui.js && node --check scripts/demo-server.js && node --check lib/browser-assistant.js && node --check lib/browser-demo.js && node --check public/browser-ui.js && node --check public/browser-demo.js && node --check scripts/windows-launcher.js && node --check scripts/browser-smoke.js",
+    "smoke:browser": "node scripts/browser-smoke.js"
+  },
+  "dependencies": {
+    "playwright": "1.64.0"
   }
 }

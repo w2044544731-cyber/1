@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
 import { createServer } from '../server.js';
 import { createStore, readiness, csv } from '../lib/store.js';
 import { replaceEdgeBackground, chooseScene } from '../public/images.js';
@@ -91,6 +92,9 @@ test('HTTP complete workflow, static assets, cross-origin protection and unconfi
   }
   assert.equal((await fetch(base + '/.local-data/products.json')).status, 404);
   assert.equal((await request('/api/import', { products: [complete] }, 'POST', { Origin: 'https://bad.example' })).status, 403);
+  assert.equal((await request('/api/browser/open', { url: 'https://erp.example/' }, 'POST', { Origin: 'https://bad.example' })).status, 403);
+  const foreignHost = await new Promise((resolve, reject) => { http.get(base + '/api/browser/status', { headers: { Host: 'untrusted.example' } }, response => { response.resume(); resolve(response.statusCode); }).on('error', reject); });
+  assert.equal(foreignHost, 403);
   assert.equal((await request('/api/import', null)).status, 400);
   const imported = await request('/api/import', { products: [complete] }); assert.equal(imported.status, 201);
   const id = imported.data[0].id;

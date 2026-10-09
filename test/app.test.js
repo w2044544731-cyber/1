@@ -77,7 +77,7 @@ test('background extraction preserves enclosed white areas and foreground colors
   assert.equal(chooseScene({ title: '键盘', category: '办公' }), 'desk');
 });
 test('HTTP complete workflow, static assets, cross-origin protection and unconfigured upload', async t => {
-  const server = createServer({ dataDir: await directory(t) });
+  const server = createServer({ dataDir: await directory(t), publishEnv: {}, sceneEnv: {} });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
